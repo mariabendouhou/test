@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard — Lunivetta Admin</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="flash-container" id="flashContainer">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash {{ cat }}" onclick="this.remove()">
+        {% if cat == 'success' %}✓{% else %}⚠{% endif %} {{ msg }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<div class="admin-layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="admin-sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">🌙 Lunivetta</div>
+      <div class="sidebar-sub">Admin Panel</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#orders" class="active"><span class="nav-icon">📋</span> Commandes</a>
+      <a href="#products"><span class="nav-icon">👗</span> Produits</a>
+      <a href="#add-product"><span class="nav-icon">＋</span> Ajouter produit</a>
+      <a href="{{ url_for('index') }}" target="_blank"><span class="nav-icon">🌐</span> Voir boutique</a>
+      <a href="{{ url_for('admin_logout') }}" style="margin-top:2rem;color:#c0392b!important;"><span class="nav-icon">⏻</span> Déconnexion</a>
+    </nav>
+  </aside>
+
+  <!-- ── Main Content ── -->
+  <main class="admin-content">
+
+    <!-- Top bar -->
+    <div class="admin-topbar">
+      <h1 class="admin-page-title">Tableau de bord</h1>
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <span style="font-size:.78rem;color:var(--text-muted);">Bonjour, <strong>{{ session.admin_user }}</strong></span>
+        <a href="{{ url_for('admin_logout') }}" class="btn btn-sm btn-danger">Déconnexion</a>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card total">
+        <div class="stat-number">{{ stats.total }}</div>
+        <div class="stat-label">Total commandes</div>
+      </div>
+      <div class="stat-card nouveau">
+        <div class="stat-number">{{ stats.nouveau }}</div>
+        <div class="stat-label">Nouvelles</div>
+      </div>
+      <div class="stat-card traite">
+        <div class="stat-number">{{ stats.traite }}</div>
+        <div class="stat-label">Traitées</div>
+      </div>
+      <div class="stat-card livre">
+        <div class="stat-number">{{ stats.livre }}</div>
+        <div class="stat-label">Livrées</div>
+      </div>
+    </div>
+
+    <!-- ══ ORDERS ══════════════════════════════════════════ -->
+    <div class="admin-section" id="orders">
+      <div class="admin-section-header">
+        <h2 class="admin-section-title">📋 Commandes reçues</h2>
+        <form method="GET" class="search-bar">
+          <input type="text" name="q" value="{{ search }}" placeholder="Rechercher...">
+          <select name="statut" class="filter-select" onchange="this.form.submit()">
+            <option value="">Tous statuts</option>
+            <option value="nouveau" {% if statut_filter=='nouveau' %}selected{% endif %}>Nouvelles</option>
+            <option value="traite"  {% if statut_filter=='traite'  %}selected{% endif %}>Traitées</option>
+            <option value="livre"   {% if statut_filter=='livre'   %}selected{% endif %}>Livrées</option>
+          </select>
+          <button type="submit" class="btn btn-sm btn-dark">Filtrer</button>
+          {% if search or statut_filter %}
+          <a href="{{ url_for('admin_dashboard') }}" class="btn btn-sm btn-outline" style="color:var(--text-muted);border-color:#ddd;">✕ Réinitialiser</a>
+          {% endif %}
+        </form>
+      </div>
+
+      <div class="table-wrap">
+        {% if orders %}
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Client</th>
+              <th>Téléphone</th>
+              <th>Produit</th>
+              <th>Taille</th>
+              <th>Wilaya</th>
+              <th>Livraison</th>
+              <th>Date</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in orders %}
+            <tr>
+              <td style="color:var(--text-muted);font-weight:600;">#{{ order.id }}</td>
+              <td>
+                <strong>{{ order.nom }}</strong>
+                {% if order.email %}<br><small style="color:var(--text-muted)">{{ order.email }}</small>{% endif %}
+              </td>
+              <td><a href="tel:{{ order.telephone }}" style="color:var(--navy)">{{ order.telephone }}</a></td>
+              <td style="font-weight:500;color:var(--midnight)">{{ order.produit }}</td>
+              <td><span class="badge badge-nouveau">{{ order.taille }}</span></td>
+              <td>{{ order.wilaya }}</td>
+              <td>
+                {% if order.livraison == 'À domicile' %}🏠{% else %}📦{% endif %}
+                {{ order.livraison }}
+                {% if order.adresse %}<br><small style="color:var(--text-muted)">{{ order.adresse }}</small>{% endif %}
+              </td>
+              <td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted)">
+                {{ order.date.strftime('%d/%m/%Y %H:%M') if order.date else '—' }}
+              </td>
+              <td>
+                <span class="badge badge-{{ order.statut }}">{{ order.statut }}</span>
+              </td>
+              <td>
+                <div class="td-actions">
+                  <form method="POST" action="{{ url_for('update_order_statut', order_id=order.id) }}" style="display:flex;gap:.4rem;align-items:center;">
+                    <select name="statut">
+                      <option value="nouveau" {% if order.statut=='nouveau' %}selected{% endif %}>Nouveau</option>
+                      <option value="traite"  {% if order.statut=='traite'  %}selected{% endif %}>Traité</option>
+                      <option value="livre"   {% if order.statut=='livre'   %}selected{% endif %}>Livré</option>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-success">✓</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('delete_order', order_id=order.id) }}"
+                        onsubmit="return confirm('Supprimer la commande #{{ order.id }} ?')">
+                    <button type="submit" class="btn btn-sm btn-danger">✕</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div style="padding:3rem;text-align:center;color:var(--text-muted);">
+          <div style="font-size:2.5rem;margin-bottom:1rem;">📭</div>
+          <p>Aucune commande trouvée.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div><!-- /orders -->
+
+    <!-- ══ PRODUCTS LIST ══════════════════════════════════ -->
+    <div class="admin-section" id="products">
+      <div class="admin-section-header">
+        <h2 class="admin-section-title">👗 Produits de la boutique</h2>
+        <a href="#add-product" class="btn btn-sm btn-primary">+ Ajouter</a>
+      </div>
+
+      <div class="product-admin-grid">
+        {% for p in products %}
+        <div class="product-admin-card {% if not p.actif %}product-inactive{% endif %}">
+          <div class="product-admin-img">🌙</div>
+          <div class="product-admin-body">
+            <div class="product-admin-name">{{ p.nom }}</div>
+            <div class="product-admin-price">{{ "{:,.0f}".format(p.prix) }} DA</div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.8rem;">
+              Tailles: {{ p.tailles }}<br>
+              Statut: {% if p.actif %}<span style="color:#27ae60">✓ Actif</span>{% else %}<span style="color:#c0392b">✕ Inactif</span>{% endif %}
+            </div>
+            <div class="product-admin-actions">
+              <button class="btn btn-sm btn-dark"
+                onclick="openEditModal('{{ p.id }}', '{{ p.nom }}', '{{ p.description }}', '{{ p.prix }}', '{{ p.tailles }}', '{{ p.actif }}')">
+                ✏ Modifier
+              </button>
+              <form method="POST" action="{{ url_for('delete_product', product_id=p.id) }}"
+                    onsubmit="return confirm('Supprimer {{ p.nom }} ?')">
+                <button type="submit" class="btn btn-sm btn-danger">✕</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ══ ADD PRODUCT ════════════════════════════════════ -->
+    <div class="admin-section" id="add-product">
+      <div class="admin-section-header">
+        <h2 class="admin-section-title">＋ Ajouter un produit</h2>
+      </div>
+      <div class="add-product-form">
+        <form method="POST" action="{{ url_for('add_product') }}" enctype="multipart/form-data">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Nom du produit *</label>
+              <input class="form-control" type="text" name="nom" required placeholder="Ex: Robe Luna Nuit">
+            </div>
+            <div class="form-group">
+              <label>Prix (DA) *</label>
+              <input class="form-control" type="number" name="prix" required min="0" step="50" placeholder="4200">
+            </div>
+            <div class="form-group full">
+              <label>Description</label>
+              <textarea class="form-control" name="description" rows="3" placeholder="Description du produit..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Tailles disponibles</label>
+              <input class="form-control" type="text" name="tailles" value="XS,S,M,L,XL" placeholder="XS,S,M,L,XL">
+            </div>
+            <div class="form-group">
+              <label>Image du produit</label>
+              <input class="form-control" type="file" name="image" accept="image/*">
+            </div>
+          </div>
+          <div style="margin-top:1.2rem;">
+            <button type="submit" class="btn btn-primary">Ajouter le produit →</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">Modifier le produit</h2>
+        <p class="modal-subtitle">LUNIVETTA ADMIN</p>
+      </div>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <form method="POST" id="editForm" enctype="multipart/form-data">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom *</label>
+            <input class="form-control" type="text" name="nom" id="editNom" required>
+          </div>
+          <div class="form-group">
+            <label>Prix (DA) *</label>
+            <input class="form-control" type="number" name="prix" id="editPrix" required>
+          </div>
+          <div class="form-group full">
+            <label>Description</label>
+            <textarea class="form-control" name="description" id="editDesc" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Tailles</label>
+            <input class="form-control" type="text" name="tailles" id="editTailles">
+          </div>
+          <div class="form-group">
+            <label>Nouvelle image</label>
+            <input class="form-control" type="file" name="image" accept="image/*">
+          </div>
+          <div class="form-group full">
+            <label style="display:flex;align-items:center;gap:.6rem;">
+              <input type="checkbox" name="actif" id="editActif" style="accent-color:var(--gold)">
+              Produit actif (visible en boutique)
+            </label>
+          </div>
+        </div>
+        <div class="form-submit">
+          <button type="button" class="btn btn-outline" onclick="closeEditModal()" style="color:var(--text-muted);border-color:#ddd;">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer →</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openEditModal(id, nom, desc, prix, tailles, actif) {
+    document.getElementById('editNom').value = nom;
+    document.getElementById('editDesc').value = desc;
+    document.getElementById('editPrix').value = prix;
+    document.getElementById('editTailles').value = tailles;
+    document.getElementById('editActif').checked = Boolean(actif);
+    document.getElementById('editForm').action = '/admin/product/' + id + '/edit';
+    document.getElementById('editModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+  document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+  });
+
+  // Smooth scroll sidebar links
+  document.querySelectorAll('.sidebar-nav a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const el = document.querySelector(a.getAttribute('href'));
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  setTimeout(() => document.querySelectorAll('.flash').forEach(f => f.remove()), 5000);
+</script>
+</body>
+</html>

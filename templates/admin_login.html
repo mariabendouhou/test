@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Admin — Lunivetta</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body class="admin-login-page">
+    <main class="container">
+      <h1>Connexion administrateur</h1>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+          <div class="flash {{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <form action="{{ url_for('admin_login') }}" method="POST" class="admin-login-form">
+        <label>Nom d'utilisateur</label>
+        <input type="text" name="username" required placeholder="admin">
+
+        <label>Mot de passe</label>
+        <input type="password" name="password" required>
+
+        <div style="margin-top:1rem;display:flex;gap:.5rem;">
+          <button class="btn btn-primary" type="submit">Se connecter</button>
+          <a class="btn btn-outline" href="{{ url_for('index') }}">Retour</a>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>
